@@ -1,11 +1,5 @@
 #include "Logic.h"
 #include "Config.h"
-#include "Display.h"  // Musimy to dodać, żeby móc wywołać drawUI() i delete_splash_screen()
-#include <M5Cardputer.h>
-#include "M5Wrapper.h"
-
-// Deklarujemy, że ui_splash_screen istnieje gdzieś w projekcie (w Display.cpp)
-extern lv_obj_t * ui_splash_screen;
 
 GameState currentState = PLACING_SHIPS;
 int selectedCol = 3;
@@ -15,41 +9,16 @@ int currentShipIndex = 0;
 byte playerBoard[8][8] = {0};
 
 const ShipShape ALL_SHIPS[4] = {
-    {6, {{0,0}, {1,0}, {2,0}, {1,1}, {2,1}, {3,1}}}, 
-    {4, {{0,0}, {-1,0}, {1,0}, {0,1}}},             
-    {3, {{0,0}, {1,0}, {2,0}}},                     
-    {2, {{0,0}, {1,0}}}                             
+    {6, {{0,0}, {1,0}, {2,0}, {1,1}, {2,1}, {3,1}}}, // Zygzak
+    {4, {{0,0}, {-1,0}, {1,0}, {0,1}}},             // T
+    {3, {{0,0}, {1,0}, {0,1}}},                     // L
+    {2, {{0,0}, {1,0}}}                             // Linia
 };
 
-// --- NOWA FUNKCJA: OBSŁUGA EKRANU STARTOWEGO ---
-void handle_intro_input() {
-    // Sprawdzamy czy ekran startowy jest aktualnie wyświetlany
-    if (ui_splash_screen != NULL) {
-        // Jeśli jakikolwiek klawisz zostanie naciśnięty (lub konkretnie 1 lub 2)
-        if (M5Cardputer.Keyboard.isKeyPressed('1') || M5Cardputer.Keyboard.isKeyPressed('2')) {
-            
-            // 1. Usuwamy obrazek statków
-            delete_splash_screen(); 
-            
-            // 2. Czyścimy ekran przed rysowaniem mapy
-            M5.Display.fillScreen(BLACK); 
-            
-            // 3. Ustawiamy stan na układanie statków
-            currentState = PLACING_SHIPS; 
-            
-            // 4. Rysujemy pierwszy raz mapę gry
-            drawUI(); 
-            
-            Serial.println("Gra wystartowała!");
-        }
-    }
-}
-
 void initLogic() {
-    // Na początku ustawiamy stan na INTRO (możesz dodać taki stan do GameState w Config.h)
-    // Jeśli nie chcesz dodawać nowego stanu, po prostu startujemy i czekamy na handle_intro_input
-    selectedCol = 3;
-    selectedRow = 3;
+    currentState = PLACING_SHIPS;
+    selectedCol = 0;
+    selectedRow = 0;
     rotation = 0;
     currentShipIndex = 0;
     for(int r=0; r<8; r++) for(int c=0; c<8; c++) playerBoard[r][c] = 0;
@@ -62,18 +31,6 @@ Point rotatePoint(Point p, int rot) {
     return p;
 }
 
-bool canPlaceShip(int col, int row, int shipIdx, int rot) {
-    const ShipShape& s = ALL_SHIPS[shipIdx];
-    for (int i = 0; i < s.size; i++) {
-        Point p = rotatePoint(s.modules[i], rot);
-        int c = col + p.dx;
-        int r = row + p.dy;
-        if (c < 0 || c >= GRID_SIZE || r < 0 || r >= GRID_SIZE) return false;
-        if (playerBoard[r][c] != 0 && playerBoard[r][c] != 4) return false; 
-    }
-    return true;
-}
-
 bool isWithinBounds(int col, int row, int shipIdx, int rot) {
     const ShipShape& s = ALL_SHIPS[shipIdx];
     for (int i = 0; i < s.size; i++) {
@@ -81,6 +38,23 @@ bool isWithinBounds(int col, int row, int shipIdx, int rot) {
         int c = col + p.dx;
         int r = row + p.dy;
         if (c < 0 || c >= 8 || r < 0 || r >= 8) return false;
+    }
+    return true;
+}
+
+bool canPlaceShip(int col, int row, int shipIdx, int rot) {
+    const ShipShape& s = ALL_SHIPS[shipIdx];
+    for (int i = 0; i < s.size; i++) {
+        Point p = rotatePoint(s.modules[i], rot);
+        int c = col + p.dx;
+        int r = row + p.dy;
+
+        // 1. Czy nie wychodzi poza mapę
+        if (c < 0 || c >= 8 || r < 0 || r >= 8) return false;
+
+        // 2. Czy pole jest WOLNE (musi być równe 0)
+        // Jeśli pole ma wartość 1 (statek) lub 4 (bufor), zwróci false.
+        if (playerBoard[r][c] != 0) return false;
     }
     return true;
 }

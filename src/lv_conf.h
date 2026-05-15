@@ -1,15 +1,17 @@
 #ifndef LV_CONF_H
 #define LV_CONF_H
 
+/* Ustawienia ekranu Cardputera */
+#define LV_COLOR_DEPTH 16
+#define LV_COLOR_16_SWAP 0
+
 #include <stdint.h>
 
 /* Włączamy konfigurację */
 #define LV_CONF_SKIP 0
 #define LV_USE_USER_DATA 1
 
-/* Ustawienia ekranu Cardputera */
-#define LV_COLOR_DEPTH 16
-#define LV_COLOR_16_SWAP 0
+
 
 /* Pamięć - ustawiamy standardowo */
 #define LV_MEM_CUSTOM 0

@@ -1,63 +1,85 @@
-#include "M5Wrapper.h"
 #include "Display.h"
 #include "Config.h"
 #include "Logic.h"
-#include <M5Cardputer.h>
 
-// Deklaracja obrazka
-extern const lv_image_dsc_t IMG_0371;
-
-// Zmienne globalne dla LVGL
-lv_obj_t * ui_splash_screen;
-lv_obj_t * ui_start_label;
-
-// Funkcja pomocnicza do animacji (mrugania)
-void anim_opacity_cb(void * var, int32_t v) {
-    lv_obj_set_style_opa((lv_obj_t *)var, v, 0);
-}
-
-void create_splash_screen() {
-    // 1. Tworzymy ekran startowy
-    ui_splash_screen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(ui_splash_screen, lv_color_hex(0x000000), 0);
-
-    // 2. Obrazek tła (statki)
-    lv_obj_t * img = lv_image_create(ui_splash_screen);
-    lv_image_set_src(img, &IMG_0371);
-    lv_obj_center(img);
-
-    // 3. Mrugający napis
-    ui_start_label = lv_label_create(ui_splash_screen);
-    lv_label_set_text(ui_start_label, "PRESS 1 OR 2 PLAYERS");
-    lv_obj_set_style_text_color(ui_start_label, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_align(ui_start_label, LV_ALIGN_BOTTOM_MID, 0, -15);
-
-    // 4. Animacja mrugania (wypełniam to, co było puste)
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, ui_start_label);
-    lv_anim_set_values(&a, 255, 0); // Od widocznego do zniknięcia
-    lv_anim_set_time(&a, 800);
-    lv_anim_set_playback_time(&a, 400);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_exec_cb(&a, anim_opacity_cb);
-    lv_anim_start(&a);
-    
-    // Załaduj ekran
-    lv_scr_load(ui_splash_screen);
-}
-
-// Funkcja do usuwania intro, gdy zaczynamy grę
-void delete_splash_screen() {
-    if(ui_splash_screen != NULL) {
-        lv_obj_del(ui_splash_screen);
-        ui_splash_screen = NULL;
-    }
-}
-
-// Twoja stara funkcja drawUI (zostaje bez zmian, użyjesz jej jak gra ruszy)
 void drawUI() {
     M5.Display.startWrite();
-    // ... reszta Twojego kodu rysującego mapę ...
+    M5.Display.fillScreen(COLOR_BG);
+    
+    // --- 1. PANEL GRACZA (LEWA STRONA) ---
+    M5.Display.setTextColor(COLOR_PLAYER);
+    M5.Display.setTextSize(1);
+    M5.Display.setCursor(5, 2);
+    M5.Display.print("Player:");
+    M5.Display.setCursor(10, 12);
+    M5.Display.setTextSize(2);
+    M5.Display.print("Leszek");
+
+    M5.Display.drawRect(5, 35, 85, 95, COLOR_PLAYER);
+    M5.Display.drawLine(60, 35, 60, 130, COLOR_PLAYER); 
+    M5.Display.setTextSize(1);
+    M5.Display.setCursor(10, 38);
+    M5.Display.print("hits:");
+
+    for(int i = 0; i < SHIP_COUNT; i++) {
+        int yPos = 50 + (i * 20);
+        for(int b = 0; b < SHIP_SIZES[i]; b++) {
+            M5.Display.fillRect(10 + b*7, yPos, 5, 8, SHIP_COLORS[i]);
+        }
+        M5.Display.setCursor(70, yPos);
+        M5.Display.printf("0"); 
+    }
+
+    // --- 2. MAPA I LOGIKA WYŚWIETLANIA (PRAWA STRONA) ---
+    for (int r = 0; r < GRID_SIZE; r++) {
+        // Cyfry po lewej od mapy
+        M5.Display.setTextColor(COLOR_TEXT);
+        M5.Display.setCursor(OFFSET_X - 12, OFFSET_Y + r * CELL_SIZE + 3);
+        M5.Display.printf("%d", r + 1);
+
+        for (int c = 0; c < GRID_SIZE; c++) {
+            uint16_t color = COLOR_GRID;
+
+if (playerBoard[r][c] == 1) {
+    color = COLOR_SHIP;
+    // Wypełnij środek klocka, żeby nie był tylko ramką
+    M5.Display.fillRect(OFFSET_X + c * CELL_SIZE + 2, OFFSET_Y + r * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4, color);
+}
+
+if (currentState == PLACING_SHIPS) {
+    // Sprawdzamy, czy w obecnej pozycji można postawić statek
+    bool legal = canPlaceShip(selectedCol, selectedRow, currentShipIndex, rotation);
+    uint16_t ghostColor = legal ? YELLOW : RED; // Żółty jak OK, Czerwony jak kolizja
+
+    const ShipShape& s = ALL_SHIPS[currentShipIndex];
+    for (int i = 0; i < s.size; i++) {
+        Point p = rotatePoint(s.modules[i], rotation);
+        int drawC = selectedCol + p.dx;
+        int drawR = selectedRow + p.dy;
+        
+        // Rysujemy klocki ducha
+        M5.Display.drawRect(OFFSET_X + drawC * CELL_SIZE + 1, 
+                            OFFSET_Y + drawR * CELL_SIZE + 1, 
+                            CELL_SIZE - 2, CELL_SIZE - 2, ghostColor);
+    }
+}
+            
+            // Rysowanie kwadracika siatki
+            M5.Display.drawRect(OFFSET_X + c * CELL_SIZE, OFFSET_Y + r * CELL_SIZE, CELL_SIZE, CELL_SIZE, color);
+            
+            // Wypełnienie, jeśli to postawiony statek, żeby był lepiej widoczny
+            if (playerBoard[r][c] == 1) {
+                M5.Display.fillRect(OFFSET_X + c * CELL_SIZE + 2, OFFSET_Y + r * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4, color);
+            }
+        }
+    }
+
+    // Litery A-H pod mapą
+    M5.Display.setTextColor(COLOR_TEXT);
+    for (int i = 0; i < GRID_SIZE; i++) {
+        M5.Display.setCursor(OFFSET_X + i * CELL_SIZE + 4, OFFSET_Y + (GRID_SIZE * CELL_SIZE) + 4);
+        M5.Display.printf("%c", 'A' + i);
+    }
+
     M5.Display.endWrite();
 }
