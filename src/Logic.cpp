@@ -1,17 +1,23 @@
 #include "Logic.h"
 #include "Config.h"
 
+// Inicjalizacja pustych plansz na start gry
+byte playerBoard[8][8] = {0};
+byte enemyBoard[8][8] = {0};
+
+int aimCol = 3;
+int aimRow = 3;
+
 GameState currentState = PLACING_SHIPS;
 int selectedCol = 3;
 int selectedRow = 3;
 int rotation = 0;
 int currentShipIndex = 0;
-byte playerBoard[8][8] = {0};
 
 const ShipShape ALL_SHIPS[4] = {
     {6, {{0,0}, {1,0}, {2,0}, {1,1}, {2,1}, {3,1}}}, // Zygzak
     {4, {{0,0}, {-1,0}, {1,0}, {0,1}}},             // T
-    {3, {{0,0}, {1,0}, {2,0}}},                     // Linia
+    {3, {{0,0}, {1,0}, {2,0}}},                     // Linia (Prosty trzymasztowiec!)
     {2, {{0,0}, {1,0}}}                             // Linia
 };
 
@@ -21,7 +27,17 @@ void initLogic() {
     selectedRow = 0;
     rotation = 0;
     currentShipIndex = 0;
-    for(int r=0; r<8; r++) for(int c=0; c<8; c++) playerBoard[r][c] = 0;
+    
+    // Ustawiamy celownik na środek planszy wroga na start
+    aimCol = 3;
+    aimRow = 3;
+
+    for(int r=0; r<8; r++) {
+        for(int c=0; c<8; c++) {
+            playerBoard[r][c] = 0;
+            enemyBoard[r][c] = 0; // Czyścimy też planszę bota przy starcie
+        }
+    }
 }
 
 Point rotatePoint(Point p, int rot) {
@@ -53,7 +69,6 @@ bool canPlaceShip(int col, int row, int shipIdx, int rot) {
         if (c < 0 || c >= 8 || r < 0 || r >= 8) return false;
 
         // 2. Czy pole jest WOLNE (musi być równe 0)
-        // Jeśli pole ma wartość 1 (statek) lub 4 (bufor), zwróci false.
         if (playerBoard[r][c] != 0) return false;
     }
     return true;

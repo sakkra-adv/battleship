@@ -1,6 +1,7 @@
 #ifndef LOGIC_H
 #define LOGIC_H
 
+#include "Config.h"
 #include <Arduino.h>
 
 struct Point {
@@ -13,7 +14,12 @@ struct ShipShape {
 };
 extern const ShipShape ALL_SHIPS[4];
 
-enum GameState { PLACING_SHIPS, PLAYER_TURN, AI_TURN, GAME_OVER };
+extern byte playerBoard[8][8];
+extern byte enemyBoard[8][8];
+
+extern int aimCol; // Współrzędna X celownika
+extern int aimRow; // Współrzędna Y celownika
+
 extern GameState currentState;
 
 extern int currentShipIndex;
