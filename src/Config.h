@@ -24,12 +24,13 @@ const uint16_t COLOR_TARGET  = WHITE; // Biały element celownika / ogólne ozna
 const int SHIP_COUNT = 4;
 const int SHIP_SIZES[SHIP_COUNT] = {6, 4, 3, 2};
 
-// Tablica kolorów idealnie zmapowana z indeksami obiektów w ALL_SHIPS:
-// Index 0: Zygzak (6-masztowiec) -> CYAN
-// Index 1: Litera T (4-masztowiec) -> MAGENTA
-// Index 2: Klasyczny 3-masztowiec -> WHITE
-// Index 3: Klasyczny 2-masztowiec -> GREEN
-const uint16_t SHIP_COLORS[SHIP_COUNT] = {CYAN, MAGENTA, WHITE, GREEN};
+// --- NOWA, WYSOKOKONTRASTOWA PALETA DLA DALTONISTÓW (RGB565) ---
+const uint16_t SHIP_COLORS[SHIP_COUNT] = {
+    0xFFFF, // 1. Statek: Czysty BIAŁY (Maksymalna jasność)
+    0xFFE0, // 2. Statek: Jaskrawy ŻÓŁTY
+    0xF81F, // 3. Statek: Głęboka MAGENTA / Różowy (Ciemniejszy, bardzo nasycony)
+    0x3A55  // 4. Statek: Ciemny GRAFIT / Szary (Bardzo ciemny, kontrastowy do reszty)
+};
 
 // --- STANY GRY ---
 enum GameState {

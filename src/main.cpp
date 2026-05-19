@@ -10,6 +10,9 @@ bool isTimerStarted = false;
 unsigned long ostatniBlink = 0;
 bool kursorWidoczny = true;
 
+// Deklaracja funkcji dźwiękowej (żeby kompilator jej szukał w Display.cpp)
+void playSound(int freq, int durationMs, int type = 0);
+
 // Funkcja pomocnicza do rysowania eleganckich ekranów informacyjnych
 void pokazEkranPrzejsciowy(String tytul, String podpowiedz) {
     M5.Display.fillScreen(BLACK);
@@ -22,7 +25,7 @@ void pokazEkranPrzejsciowy(String tytul, String podpowiedz) {
     M5.Display.drawString(podpowiedz.c_str(), 120, 85);
 }
 
-// Funkcja pobierająca tekst z klawiatury
+// Funkcja pobierająca tekst z klawiatury (Przetłumaczona na język angielski)
 String wpiszImie(String komunikat) {
     String wynik = "";
     bool enterPressed = false;
@@ -47,10 +50,17 @@ String wpiszImie(String komunikat) {
         }
         if (M5Cardputer.Keyboard.isPressed()) {
             if (M5Cardputer.Keyboard.isKeyPressed(KEY_ENTER)) {
-                if (wynik.length() > 0) enterPressed = true;
+                if (wynik.length() > 0) {
+                    enterPressed = true;
+                    playSound(600, 80); // Potwierdzenie imienia
+                }
             }
             else if (M5Cardputer.Keyboard.isKeyPressed(KEY_BACKSPACE)) {
-                if (wynik.length() > 0) { wynik.remove(wynik.length() - 1); trzebaOdswiezycPole = true; }
+                if (wynik.length() > 0) { 
+                    wynik.remove(wynik.length() - 1); 
+                    trzebaOdswiezycPole = true; 
+                    playSound(250, 40); // Dźwięk usuwania litery
+                }
             }
             else if (wynik.length() < 6) { // Blokada do 6 znaków pod tabele
                 char wpisanyZnak = 0;
@@ -63,6 +73,7 @@ String wpiszImie(String komunikat) {
                     if (wynik.length() == 0) wynik += (char)toupper(wpisanyZnak);
                     else wynik += (char)tolower(wpisanyZnak);
                     trzebaOdswiezycPole = true;
+                    playSound(450, 40); // Dźwięk wpisywania litery
                     delay(40); 
                 }
             }
@@ -92,6 +103,11 @@ void setup() {
     auto cfg = M5.config();
     M5.begin(cfg);
     M5Cardputer.begin(cfg, true);
+    
+    // --- AKTYWACJA GŁOŚNIKA ---
+    M5.Speaker.begin();
+    M5.Speaker.setVolume(64); // Skala 0-255 (64 to optymalne, ciche retro)
+    
     M5.Display.setRotation(1);
     Serial.begin(115200); 
     initLogic(); 
@@ -101,12 +117,13 @@ void setup() {
 void loop() {
     M5Cardputer.update();
 
-    // --- FAZA: MENU GŁÓWNE ---
+    // --- FAZA: MENU GŁÓWNE (Teksty po angielsku) ---
     if (currentState == START_MENU) {
         if (M5Cardputer.Keyboard.isPressed()) {
             if (M5Cardputer.Keyboard.isKeyPressed('1')) {
                 g_trybGraczy = 1;
-                imieGracza1 = wpiszImie("Wpisz imie Kapitana:");
+                playSound(500, 100);
+                imieGracza1 = wpiszImie("Enter Captain's name:");
                 imieGracza2 = "EvilAI"; 
                 initLogic(); 
                 placeComputerShips();
@@ -115,12 +132,13 @@ void loop() {
             }
             else if (M5Cardputer.Keyboard.isKeyPressed('2')) {
                 g_trybGraczy = 2;
-                imieGracza1 = wpiszImie("Gracz 1 - Wpisz imie:");
-                imieGracza2 = " " + wpiszImie("Gracz 2 - Wpisz imie:");
+                playSound(500, 100);
+                imieGracza1 = wpiszImie("Player 1 - Enter name:");
+                imieGracza2 = " " + wpiszImie("Player 2 - Enter name:");
                 reset2PlayerBoards();
                 
                 currentState = WAIT_P1_PLACE;
-                pokazEkranPrzejsciowy("Kapitan " + imieGracza1, "Ustaw swoje statki. [Kliknij SPACJE]");
+                pokazEkranPrzejsciowy("Captain " + imieGracza1, "Deploy your fleet! [Press SPACE]");
             }
         }
         return;
@@ -134,7 +152,9 @@ void loop() {
             delay(200);
             while (M5Cardputer.Keyboard.isPressed()) { M5Cardputer.update(); delay(10); }
 
-            // ZAMIAST initLogic() robimy czyszczenie ręczne bez psucia stanów:
+            playSound(587, 150); // Akceptacja spacji przed rozstawianiem
+
+            // Czyszczenie ręczne bez psucia stanów:
             selectedCol = 3; selectedRow = 3; rotation = 0;
             currentShipIndex = 0; 
             for(int r=0; r<8; r++) {
@@ -144,7 +164,6 @@ void loop() {
                 }
             }
             
-            // Przypisujemy prawidłowy stan maszynerii
             currentState = (currentState == WAIT_P1_PLACE) ? PLACING_P1 : PLACING_P2;
             drawUI();
         }
@@ -156,6 +175,7 @@ void loop() {
         if (!isTimerStarted) { gameOverStartTime = millis(); isTimerStarted = true; }
         if (millis() - gameOverStartTime >= 4000) {
             if (M5Cardputer.Keyboard.isPressed() && M5Cardputer.Keyboard.isKeyPressed(' ')) {
+                playSound(440, 100);
                 isTimerStarted = false; 
                 pokazSplash(); 
                 delay(300); 
@@ -181,15 +201,23 @@ void loop() {
             if (inputAction) {
                 if (isWithinBounds(nextCol, nextRow, currentShipIndex, nextRot)) {
                     selectedCol = nextCol; selectedRow = nextRow; rotation = nextRot; drawUI();
+                    playSound(400, 30); // Krótkie piknięcie przy ruchu/obracaniu statku
                 }
                 delay(130); return;
             }
 
-            if (M5Cardputer.Keyboard.isKeyPressed('c') || M5Cardputer.Keyboard.isKeyPressed('C')) {
+            // NOWOŚĆ: Zatwierdzenie pozycji statku za pomocą SPACJI zamiast klawisza 'C'
+            if (M5Cardputer.Keyboard.isKeyPressed(' ')) {
                 if (isLegalPlacement(selectedCol, selectedRow, currentShipIndex, rotation, true)) {
                     placeShip(selectedCol, selectedRow, currentShipIndex, rotation, true); 
                     currentShipIndex++;
                     selectedCol = 3; selectedRow = 3; rotation = 0;
+                    
+                    playSound(700, 80); // Dźwięk pomyślnego postawienia statku
+                    
+                    // Bezpieczeństwo: Czekamy, aż gracz fizycznie puści spację, żeby zapobiec podwójnemu kliknięciu
+                    delay(200);
+                    while (M5Cardputer.Keyboard.isPressed()) { M5Cardputer.update(); delay(10); }
                     
                     if (currentShipIndex >= SHIP_COUNT) {
                         if (currentState == PLACING_SHIPS) { // Tryb 1P kończy bieg
@@ -197,21 +225,14 @@ void loop() {
                         } 
                         else if (currentState == PLACING_P1) { // Gracz 1 skończył -> czas na Gracza 2
                             savePlayer1View();
-                            
-                            // Śluza: Czekamy, aż gracz całkowicie puści klawisz 'C'
-                            delay(200);
-                            while (M5Cardputer.Keyboard.isPressed()) { M5Cardputer.update(); delay(10); }
 
                             currentState = WAIT_P2_PLACE;
-                            pokazEkranPrzejsciowy("Kapitan " + imieGracza2, "Ustaw swoje statki. [Kliknij SPACJE]");
+                            // Tekst zmieniony na angielski
+                            pokazEkranPrzejsciowy("Captain " + imieGracza2, "Deploy your fleet! [Press SPACE]");
                             return;
                         }
                         else if (currentState == PLACING_P2) { // Gracz 2 skończył -> odpalamy bitwę!
                             memcpy(p2Fleet, playerBoard, sizeof(p2Fleet)); // Zapis floty G2
-                            
-                            // Śluza: Czekamy, aż gracz całkowicie puści klawisz 'C' przed walką
-                            delay(200);
-                            while (M5Cardputer.Keyboard.isPressed()) { M5Cardputer.update(); delay(10); }
 
                             currentState = PLAYER1_TURN;
                             loadPlayer1View(); // Zaczyna zawsze Gracz 1
@@ -219,7 +240,10 @@ void loop() {
                         }
                     }
                     drawUI();
-                    delay(300);
+                    delay(100);
+                } else {
+                    playSound(180, 150); // ERROR SOUND: złe rozstawienie statku
+                    delay(150);
                 }
             }
         }
@@ -240,14 +264,33 @@ void loop() {
             else if (M5Cardputer.Keyboard.isKeyPressed('7')) { aimRow = 6; inputAction = true; }
             else if (M5Cardputer.Keyboard.isKeyPressed('8')) { aimRow = 7; inputAction = true; }
 
-            if (inputAction) { drawUI(); delay(130); return; }
+            if (inputAction) { 
+                drawUI(); 
+                playSound(350, 30); // Krótkie piknięcie celownika
+                delay(130); 
+                return; 
+            }
             
             if (M5Cardputer.Keyboard.isKeyPressed(' ')) {
                 byte cell = enemyBoard[aimRow][aimCol];
                 if (cell == 0 || (cell >= 10 && cell <= 13)) {
                     GameState turaPrzedStrzalem = currentState; // Zapamiętujemy, kto strzelał
                     
-                    registerPlayerShot(aimCol, aimRow);
+                    // Odpalenie dźwięku wystrzału torpedy
+                    playSound(900, 50, 1);
+                    playSound(500, 80, 1);
+
+                    bool hit = registerPlayerShot(aimCol, aimRow);
+                    
+                    if (hit) {
+                        // DWUFAZOWY WYBUCH: Trafienie!
+                        playSound(800, 80, 1);
+                        playSound(300, 150, 1);
+                    } else {
+                        // Niskie retro "plum" w wodę: Pudło!
+                        playSound(150, 200);
+                    }
+
                     drawUI(); 
                     delay(1000); 
 
@@ -256,7 +299,7 @@ void loop() {
                             winnerName = (turaPrzedStrzalem == PLAYER1_TURN) ? imieGracza1 : imieGracza2;
                             loserName = (turaPrzedStrzalem == PLAYER1_TURN) ? imieGracza2 : imieGracza1;
                         }
-                        drawUI(); // Przerysuje na ekran zwycięstwa z imionami
+                        drawUI(); 
                     } else {
                         if (g_trybGraczy == 1) { // Tryb vs AI leci klasycznie
                             currentState = COMPUTER_TURN;

@@ -2,6 +2,8 @@
 #include "Config.h"
 #include "Display.h"
 
+void playSound(int freq, int durationMs, int type = 0);
+
 byte playerBoard[8][8] = {0};
 byte enemyBoard[8][8] = {0};
 
@@ -260,7 +262,15 @@ bool registerPlayerShot(int x, int y) {
         enemyBoard[y][x] += 20; // Trafienie (30-33)
         
         if (isShipSunk(shipIdx, false)) {
-            Serial.printf("Zatopiono statek o indeksie %d!\n", shipIdx);
+            Serial.printf("Zatopiles statek bota o indeksie %d!\n", shipIdx);
+            
+            // --- BOHATERSKIE FANFARY GRACZA ---
+            // Radosne, czyste retro nutki obwieszczające sukces
+            playSound(523, 100); // C5
+            playSound(659, 100); // E5
+            playSound(784, 100); // G5
+            playSound(1047, 300); // C6 (Zwycięski akcent!)
+            
             markSunkShipSurroundings(shipIdx, false); 
         }
 
@@ -278,20 +288,29 @@ bool registerPlayerShot(int x, int y) {
 }
 
 void computerShot() {
+    // 1. FAZA MYŚLENIA / PRZESZUKIWANIA ("Bi Bu Bi Bu")
     for (int i = 0; i < 6; i++) {
         compAimCol = random(0, 8);
         compAimRow = random(0, 8);
         drawUI(); 
-        delay(180); 
+        
+        // Generujemy naprzemienne wysokie i niskie piknięcia superkomputera
+        if (i % 2 == 0) {
+            playSound(900, 40); // Wysokie "Bi"
+        } else {
+            playSound(600, 40); // Niższe "Bu"
+        }
+        
+        delay(140); // Skrócony delay, bo playSound już ma małe opóźnienie
     }
 
     int targetRow = -1;
     int targetCol = -1;
     bool shotFound = false;
 
+    // 2. LOGIKA WYBORU CELU PRZEZ AI
     while (hitStackSize > 0 && !shotFound) {
         HitPoint lastHit = hitStack[hitStackSize - 1];
-        
         int startDir = random(0, 4);
         for (int i = 0; i < 4; i++) {
             int dir = (startDir + i) % 4;
@@ -308,7 +327,6 @@ void computerShot() {
                 }
             }
         }
-
         if (!shotFound) {
             hitStackSize--; 
         }
@@ -326,18 +344,28 @@ void computerShot() {
         }
     }
 
+    // Najechanie na ostateczny cel i zatwierdzenie ("Piiip!")
     compAimCol = targetCol;
     compAimRow = targetRow;
     drawUI();
-    delay(500); 
+    playSound(1200, 100); // Dźwięk namierzenia celu
+    delay(400); 
+
+    // 3. ODPALENIE TORPEDY PRZEZ BOT-A
+    playSound(800, 50, 1);
+    playSound(400, 80, 1);
 
     byte finalCell = playerBoard[targetRow][targetCol];
 
     if (finalCell >= 10 && finalCell <= 13) {
         int shipIdx = finalCell - 10;
-        playerBoard[targetRow][targetCol] += 20; 
+        playerBoard[targetRow][targetCol] += 20; // TRAFIENIE!
         Serial.printf("EvilAI strzelil w %c%d i TRAFIL!\n", 'A' + targetCol, targetRow + 1);
         
+        // Efekt wybuchu w Twoją flotę (brutalny chiptune)
+        playSound(700, 80, 1);
+        playSound(250, 150, 1);
+
         if (hitStackSize < 64) {
             hitStack[hitStackSize] = {targetCol, targetRow};
             hitStackSize++;
@@ -345,6 +373,14 @@ void computerShot() {
 
         if (isShipSunk(shipIdx, true)) {
             Serial.printf("EvilAI zatopil Twoj statek %d!\n", shipIdx);
+            
+            // --- ZŁOWIESZCZE FANFARY EVILAI ---
+            // Krótka, triumfalna i agresywna sekwencja tonów bota
+            playSound(440, 100, 1); // A4
+            playSound(554, 100, 1); // C#5
+            playSound(659, 100, 1); // E5
+            playSound(880, 300, 1); // A5 (Triumf!)
+            
             markSunkShipSurroundings(shipIdx, true);
             hitStackSize = 0; 
         }
@@ -355,8 +391,11 @@ void computerShot() {
         }
     } 
     else if (finalCell == 0) {
-        playerBoard[targetRow][targetCol] = 1; 
+        playerBoard[targetRow][targetCol] = 1; // PUDŁO!
         Serial.printf("EvilAI strzelil w %c%d i SPUDLOWAL.\n", 'A' + targetCol, targetRow + 1);
+        
+        // Smutne, niskie "plum" w wykonaniu bota
+        playSound(130, 200);
     }
 
     drawUI();
