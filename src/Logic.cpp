@@ -20,6 +20,74 @@ int g_trybGraczy = 1;
 String imieGracza1 = "Kapitan";
 String imieGracza2 = "EvilAI";
 
+String winnerName = "";
+String loserName = "";
+
+// --- SEJFY PLANSZ DLA 2 GRACZY ---
+byte p1Fleet[8][8];      // Statki Gracza 1
+byte p1EnemyHits[8][8];  // Tylko strzały Gracza 1 (0, 1, 30-33)
+byte p2Fleet[8][8];      // Statki Gracza 2
+byte p2EnemyHits[8][8];  // Tylko strzały Gracza 2 (0, 1, 30-33)
+
+void reset2PlayerBoards() {
+    memset(p1Fleet, 0, sizeof(p1Fleet));
+    memset(p1EnemyHits, 0, sizeof(p1EnemyHits));
+    memset(p2Fleet, 0, sizeof(p2Fleet));
+    memset(p2EnemyHits, 0, sizeof(p2EnemyHits));
+    winnerName = "";
+    loserName = "";
+}
+
+// Ładowanie świata z perspektywy Gracza 1
+void loadPlayer1View() {
+    // 1. Lewa strona (Obrona G1): Ładujemy czystą flotę G1
+    memcpy(playerBoard, p1Fleet, sizeof(playerBoard));
+    
+    // 2. Prawa strona (Atak G1): Nakładamy strzały G1 na ukryte statki G2!
+    for(int r=0; r<8; r++) {
+        for(int c=0; c<8; c++) {
+            // Jeśli G1 już tam strzelił (pudło=1, trafienie>=30), pokazujemy to
+            if (p1EnemyHits[r][c] != 0) {
+                enemyBoard[r][c] = p1EnemyHits[r][c];
+            } else {
+                // Jeśli nie strzelił, na mapie "wroga" siedzi ukryty statek G2 (0 lub 10-13)
+                enemyBoard[r][c] = p2Fleet[r][c];
+            }
+        }
+    }
+}
+
+// Zapisywanie stanu po turze Gracza 1
+void savePlayer1View() {
+    // Zapisujemy stan obrony (mógł dostać obrażenia)
+    memcpy(p1Fleet, playerBoard, sizeof(p1Fleet));
+    // Zapisujemy tylko historię strzałów podjętych na prawej planszy
+    memcpy(p1EnemyHits, enemyBoard, sizeof(p1EnemyHits));
+}
+
+// Ładowanie świata z perspektywy Gracza 2
+void loadPlayer2View() {
+    // 1. Lewa strona (Obrona G2): Ładujemy czystą flotę G2
+    memcpy(playerBoard, p2Fleet, sizeof(playerBoard));
+    
+    // 2. Prawa strona (Atak G2): Nakładamy strzały G2 na ukryte statki G1!
+    for(int r=0; r<8; r++) {
+        for(int c=0; c<8; c++) {
+            if (p2EnemyHits[r][c] != 0) {
+                enemyBoard[r][c] = p2EnemyHits[r][c];
+            } else {
+                enemyBoard[r][c] = p1Fleet[r][c];
+            }
+        }
+    }
+}
+
+// Zapisywanie stanu po turze Gracza 2
+void savePlayer2View() {
+    memcpy(p2Fleet, playerBoard, sizeof(p2Fleet));
+    memcpy(p2EnemyHits, enemyBoard, sizeof(p2EnemyHits));
+}
+
 // --- ZAAWANSOWANA PAMIĘĆ BEZWZGLĘDNEGO BOTA (EVILAI) ---
 struct HitPoint {
     int c, r;
@@ -139,7 +207,6 @@ void placeComputerShips() {
     Serial.println("Bot rozstawil statki!");
 }
 
-// --- AUTOMATYCZNE OZNACZANIE OTOCZENIA ZATOPIONEGO STATKU ---
 void markSunkShipSurroundings(int shipIdx, bool isPlayerBoard) {
     byte board[8][8];
     for(int r=0; r<8; r++) {
@@ -172,7 +239,6 @@ void markSunkShipSurroundings(int shipIdx, bool isPlayerBoard) {
     }
 }
 
-// --- SPRAWDZANIE CZY CAŁY STATEK ZOSTAŁ ZATOPIONY ---
 bool isShipSunk(int shipIdx, bool isPlayerBoard) {
     byte targetAliveID = 10 + shipIdx; 
     
@@ -188,21 +254,19 @@ bool isShipSunk(int shipIdx, bool isPlayerBoard) {
     return true; 
 }
 
-// --- FUNKCJA STRZAŁU GRACZA (Z AKTUALIZACJĄ KOŃCA GRY) ---
 bool registerPlayerShot(int x, int y) {
     if (enemyBoard[y][x] >= 10 && enemyBoard[y][x] <= 13) {
         int shipIdx = enemyBoard[y][x] - 10;
         enemyBoard[y][x] += 20; // Trafienie (30-33)
         
         if (isShipSunk(shipIdx, false)) {
-            Serial.printf("Zatopiles statek bota o indeksie %d!\n", shipIdx);
+            Serial.printf("Zatopiono statek o indeksie %d!\n", shipIdx);
             markSunkShipSurroundings(shipIdx, false); 
         }
 
-        // INTEGRACJA: Sprawdzamy czy gracz przed chwilą wystrzelał ostatni maszt bota
-        if (checkGameOver(false)) { // false = sprawdzamy planszę bota (enemyBoard)
+        if (checkGameOver(false)) { 
             currentState = STATE_VICTORY;
-            Serial.println("Koniec Gry! Gracz wygral.");
+            Serial.println("Koniec Gry!");
         }
 
         return true;
@@ -213,7 +277,6 @@ bool registerPlayerShot(int x, int y) {
     return false; 
 }
 
-// Inteligentny i ekonomiczny algorytm strzału EvilAI (Z AKTUALIZACJĄ KOŃCA GRY)
 void computerShot() {
     for (int i = 0; i < 6; i++) {
         compAimCol = random(0, 8);
@@ -226,7 +289,6 @@ void computerShot() {
     int targetCol = -1;
     bool shotFound = false;
 
-    // 2. LOGIKA WYBORU CELU
     while (hitStackSize > 0 && !shotFound) {
         HitPoint lastHit = hitStack[hitStackSize - 1];
         
@@ -264,7 +326,6 @@ void computerShot() {
         }
     }
 
-    // 3. ODPALENIE TORPEDY
     compAimCol = targetCol;
     compAimRow = targetRow;
     drawUI();
@@ -274,7 +335,7 @@ void computerShot() {
 
     if (finalCell >= 10 && finalCell <= 13) {
         int shipIdx = finalCell - 10;
-        playerBoard[targetRow][targetCol] += 20; // TRAFIENIE!
+        playerBoard[targetRow][targetCol] += 20; 
         Serial.printf("EvilAI strzelil w %c%d i TRAFIL!\n", 'A' + targetCol, targetRow + 1);
         
         if (hitStackSize < 64) {
@@ -288,8 +349,7 @@ void computerShot() {
             hitStackSize = 0; 
         }
 
-        // INTEGRACJA: Sprawdzamy czy bot przed chwilą wystrzelał ostatni maszt gracza
-        if (checkGameOver(true)) { // true = sprawdzamy planszę gracza (playerBoard)
+        if (checkGameOver(true)) { 
             currentState = STATE_DEFEAT;
             Serial.println("Koniec Gry! EvilAI wygral.");
         }
@@ -303,7 +363,6 @@ void computerShot() {
     delay(1000); 
 }
 
-// --- FUNKCJA SPRAWDZANIA WARUNKU KOŃCA GRY ---
 bool checkGameOver(bool checkPlayerBoard) {
     for (int r = 0; r < 8; r++) {
         for (int c = 0; c < 8; c++) {

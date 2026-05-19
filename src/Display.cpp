@@ -2,60 +2,75 @@
 #include "Config.h"
 #include "Logic.h"
 
+// --- ZMIENNE ZEWNĘTRZNE (EXTERN) ---
 extern String imieGracza1;
+extern String imieGracza2;
+extern GameState currentState;
+extern String winnerName;
+extern String loserName;
+extern int g_trybGraczy;
 
-// Deklaracje wewnętrznych funkcji (żeby drawUI widział je poniżej)
-void drawVictoryScreen(const char* playerName);
-void drawDefeatScreen(const char* playerName);
+// Deklaracje wewnętrznych funkcji
+void drawVictoryScreen(const char* msg);
+void drawDefeatScreen(const char* msg);
 
 void drawUI() {
-    // --- KROK INTEGRACYJNY: Przechwycenie ekranów końca gry ---
+    // --- 1. PRZECHWYCENIE EKRANÓW KOŃCA GRY ---
     if (currentState == STATE_VICTORY) {
-        drawVictoryScreen("Leszek"); // Wyświetla ekran zwycięstwa
-        return; // Przerywa dalsze rysowanie planszy bitewnej
+        drawVictoryScreen(""); 
+        return; 
     }
     if (currentState == STATE_DEFEAT) {
-        drawDefeatScreen("Leszek");  // Wyświetla ekran porażki
-        return; // Przerywa dalsze rysowanie planszy bitewnej
+        drawDefeatScreen("");  
+        return; 
     }
 
-    // --- Reszta Twojego oryginalnego kodu bitwy ---
     M5.Display.startWrite();
     M5.Display.fillScreen(COLOR_BG);
     
-    // --- 1. PASEK INFORMACYJNY (GÓRA EKRANU) ---
+    // --- 2. PASEK INFORMACYJNY (GÓRA EKRANU) ---
     M5.Display.setTextSize(1);
     M5.Display.setCursor(5, 3); 
-    if (currentState == PLACING_SHIPS) {
+    
+    // Sprawdzamy stan układania statków (dla 1P oraz obu graczy w 2P)
+    if (currentState == PLACING_SHIPS || currentState == PLACING_P1 || currentState == PLACING_P2) {
         M5.Display.setTextColor(YELLOW);
         M5.Display.print("Setup: Arrows, R=Rotate, C=Confirm");
-    } else if (currentState == PLAYER_TURN) {
+    } 
+    // Sprawdzamy stan strzelania (dla 1P oaz obu graczy w 2P)
+    else if (currentState == PLAYER_TURN || currentState == PLAYER1_TURN || currentState == PLAYER2_TURN) {
         M5.Display.setTextColor(COLOR_TEXT);
         M5.Display.print("Aim (e.g. B4) + [SPACE] to fire");
-    } else if (currentState == COMPUTER_TURN) {
+    } 
+    else if (currentState == COMPUTER_TURN) {
         M5.Display.setTextColor(RED);
         M5.Display.print("EvilAI is thinking... watch out!");
     }
 
-    // Dynamiczna podmiana nazwy gracza z sarkazmem!
+    // Dynamiczny wybór aktywnego imienia do paska "Player: ..."
+    M5.Display.setCursor(5, 17); 
     if (currentState == COMPUTER_TURN) {
         M5.Display.setTextColor(RED);
-        M5.Display.setCursor(5, 17); 
         M5.Display.print("Player: EvilAI 😈");
     } else {
         M5.Display.setTextColor(COLOR_PLAYER);
-        M5.Display.setCursor(5, 17); 
-        M5.Display.printf("Player: %s", imieGracza1.c_str());
+        M5.Display.print("Player: ");
+        // Jeśli gra 2 gracz i jest jego faza układania lub strzelania -> dajemy Imię 2
+        if (g_trybGraczy == 2 && (currentState == PLACING_P2 || currentState == PLAYER2_TURN)) {
+            M5.Display.print(imieGracza2.c_str());
+        } else {
+            M5.Display.print(imieGracza1.c_str());
+        }
     }
 
-    // --- 2. PANEL GRACZA / LEWA LEGENDA ---
+    // --- 3. PANEL STATUSU OKRĘTÓW (LEWA STRONA) ---
     M5.Display.drawRect(5, 35, 85, 95, (currentState == COMPUTER_TURN) ? RED : COLOR_PLAYER);
     M5.Display.drawLine(60, 35, 60, 130, (currentState == COMPUTER_TURN) ? RED : COLOR_PLAYER); 
     M5.Display.setTextColor(COLOR_TEXT);
     M5.Display.setCursor(10, 38);
     M5.Display.print("hits:");
 
-    // Dynamiczne zliczanie i rysowanie statusu okrętów
+    // Dynamiczne rysowanie trafień
     for(int i = 0; i < SHIP_COUNT; i++) {
         int yPos = 50 + (i * 20);
         int hitCount = 0;
@@ -63,9 +78,11 @@ void drawUI() {
 
         for (int r = 0; r < GRID_SIZE; r++) {
             for (int c = 0; c < GRID_SIZE; c++) {
-                if (currentState == COMPUTER_TURN || currentState == PLACING_SHIPS) {
+                // W tych stanach sprawdzamy naszą własną planszę (obronę)
+                if (currentState == COMPUTER_TURN || currentState == PLACING_SHIPS || currentState == PLACING_P1 || currentState == PLACING_P2) {
                     if (playerBoard[r][c] == targetID) hitCount++;
                 } else {
+                    // W czasie naszej tury sprawdzamy planszę atakowaną
                     if (enemyBoard[r][c] == targetID) hitCount++;
                 }
             }
@@ -85,7 +102,7 @@ void drawUI() {
         M5.Display.printf("%d", hitCount); 
     }
 
-    // --- 3. MAPA I LOGIKA WYŚWIETLANIA (PRAWA STRONA) ---
+    // --- 4. RYSOWANIE MAPY BITWY (PRAWA STRONA) ---
     for (int r = 0; r < GRID_SIZE; r++) {
         M5.Display.setTextColor(COLOR_TEXT);
         M5.Display.setCursor(OFFSET_X - 12, OFFSET_Y + r * CELL_SIZE + 3);
@@ -96,7 +113,8 @@ void drawUI() {
             bool fillCell = false;
             uint16_t fillColor = COLOR_GRID;
 
-            if (currentState == PLACING_SHIPS || currentState == COMPUTER_TURN) {
+            // WIDOK WŁASNEJ PLANSZY (Ustawianie / Tura Przeciwnika)
+            if (currentState == PLACING_SHIPS || currentState == PLACING_P1 || currentState == PLACING_P2 || currentState == COMPUTER_TURN) {
                 byte cellValue = playerBoard[r][c];
                 
                 if (cellValue == 1) {
@@ -127,7 +145,8 @@ void drawUI() {
                     M5.Display.drawLine(OFFSET_X + (c + 1) * CELL_SIZE - 5, OFFSET_Y + r * CELL_SIZE + 4, OFFSET_X + c * CELL_SIZE + 4, OFFSET_Y + (r + 1) * CELL_SIZE - 5, RED);
                 }
             }
-            else if (currentState == PLAYER_TURN) {
+            // WIDOK CELOWANIA DO WROGA (Tura Gracza 1 lub Gracza 2)
+            else if (currentState == PLAYER_TURN || currentState == PLAYER1_TURN || currentState == PLAYER2_TURN) {
                 byte cellValue = enemyBoard[r][c];
 
                 if (cellValue == 1) { 
@@ -157,8 +176,10 @@ void drawUI() {
         }
     }
 
-    // --- 4. ELEMENTY SPECJALNE (DUCH STATKU / CELOWNIKI) ---
-    if (currentState == PLACING_SHIPS) {
+    // --- 5. SPECJALNE NAKŁADKI (DUCH STATKU / CELOWNIKI) ---
+    
+    // Rysowanie ducha rozstawianego statku (Wspólne dla 1P i obu w 2P)
+    if (currentState == PLACING_SHIPS || currentState == PLACING_P1 || currentState == PLACING_P2) {
         bool legal = isLegalPlacement(selectedCol, selectedRow, currentShipIndex, rotation, true);
         uint16_t ghostColor = legal ? YELLOW : RED;
 
@@ -177,11 +198,13 @@ void drawUI() {
             }
         }
     } 
-    else if (currentState == PLAYER_TURN) {
+    // Celownik gracza (Wspólny dla 1P oraz tur w 2P)
+    else if (currentState == PLAYER_TURN || currentState == PLAYER1_TURN || currentState == PLAYER2_TURN) {
         M5.Display.drawRect(OFFSET_X + aimCol * CELL_SIZE - 1, OFFSET_Y - 1, CELL_SIZE + 2, (GRID_SIZE * CELL_SIZE) + 2, 0x7BEF);
         M5.Display.drawRect(OFFSET_X + aimCol * CELL_SIZE + 1, OFFSET_Y + aimRow * CELL_SIZE + 1, CELL_SIZE - 2, CELL_SIZE - 2, WHITE);
         M5.Display.drawRect(OFFSET_X + aimCol * CELL_SIZE + 2, OFFSET_Y + aimRow * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4, YELLOW);
     }
+    // Celownik bota (Tylko w trybie vs AI)
     else if (currentState == COMPUTER_TURN) {
         M5.Display.drawRect(OFFSET_X + compAimCol * CELL_SIZE - 1, OFFSET_Y - 1, CELL_SIZE + 2, (GRID_SIZE * CELL_SIZE) + 2, RED);
         M5.Display.drawRect(OFFSET_X + compAimCol * CELL_SIZE + 1, OFFSET_Y + compAimRow * CELL_SIZE + 1, CELL_SIZE - 2, CELL_SIZE - 2, WHITE);
@@ -203,36 +226,51 @@ void drawUI() {
 void drawVictoryScreen(const char* msg) {
     M5.Display.fillScreen(BLACK);
     
+    // Zwycięstwo - bezpieczny rozmiar 2 (nadal wyraźny, ale nie rozciąga się)
     M5.Display.setTextColor(GREEN);
-    M5.Display.setTextSize(3);
+    M5.Display.setTextSize(2);
     M5.Display.setTextDatum(CC_DATUM);
-    M5.Display.drawString("WYGRANA!", 120, 35);
+    M5.Display.drawString("ZWYCIESTWO!", 120, 25);
     
-    M5.Display.setTextColor(0x7BEF); // Nasz GRAY
-    M5.Display.setTextSize(1.5);
-    // Składamy tekst dynamicznie z Twoim imieniem!
-    String victoriaMsg = "Gratulacje " + imieGracza1 + "!";
-    M5.Display.drawString(victoriaMsg.c_str(), 120, 70);
-    
+    // Kto kogo pokonał - mały, czytelny tekst
     M5.Display.setTextColor(WHITE);
     M5.Display.setTextSize(1);
-    M5.Display.drawString("[ Kliknij SPACJE aby zagrac znowu ]", 120, 110);
+    
+    char buforTekstu[64];
+    if (g_trybGraczy == 2) {
+        // Obcinamy ewentualne spacje i składamy ładny komunikat
+        snprintf(buforTekstu, sizeof(buforTekstu), "%s pokonal %s!", winnerName.c_str(), loserName.c_str());
+        M5.Display.drawString(buforTekstu, 120, 65);
+    } else {
+        snprintf(buforTekstu, sizeof(buforTekstu), "Gratulacje %s!", imieGracza1.c_str());
+        M5.Display.drawString(buforTekstu, 120, 65);
+    }
+    
+    // Instrukcja powrotu na dół ekranu
+    M5.Display.setTextColor(0x7BEF); // Nasz GRAY
+    M5.Display.setTextSize(1);
+    M5.Display.drawString("[ SPACJA = zagraj znowu ]", 120, 105);
 }
 
 void drawDefeatScreen(const char* msg) {
     M5.Display.fillScreen(BLACK);
     
+    // Porażka
     M5.Display.setTextColor(RED);
-    M5.Display.setTextSize(3);
+    M5.Display.setTextSize(2);
     M5.Display.setTextDatum(CC_DATUM);
-    M5.Display.drawString("PORAZKA!", 120, 35);
+    M5.Display.drawString("PORAZKA!", 120, 25);
     
-    M5.Display.setTextColor(0x7BEF); // Nasz GRAY
-    M5.Display.setTextSize(1.5);
-    String defeatMsg = imieGracza1 + " - Twoja flota zatonela...";
-    M5.Display.drawString(defeatMsg.c_str(), 120, 70);
-    
+    // Komunikat o zatonięciu
     M5.Display.setTextColor(WHITE);
     M5.Display.setTextSize(1);
-    M5.Display.drawString("[ Kliknij SPACJE aby sprobowac znowu ]", 120, 110);
+    
+    char buforTekstu[64];
+    snprintf(buforTekstu, sizeof(buforTekstu), "%s - flota zatonela...", imieGracza1.c_str());
+    M5.Display.drawString(buforTekstu, 120, 65);
+    
+    // Instrukcja powrotu
+    M5.Display.setTextColor(0x7BEF); // Nasz GRAY
+    M5.Display.setTextSize(1);
+    M5.Display.drawString("[ SPACJA = sprobuj znowu ]", 120, 105);
 }

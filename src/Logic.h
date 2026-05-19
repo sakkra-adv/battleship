@@ -18,6 +18,9 @@ extern const ShipShape ALL_SHIPS[4];
 extern byte playerBoard[8][8];
 extern byte enemyBoard[8][8];
 
+extern byte p1Fleet[8][8];
+extern byte p2Fleet[8][8];
+
 extern int aimCol; 
 extern int aimRow; 
 
@@ -50,5 +53,13 @@ extern int compAimRow;
 extern int g_trybGraczy;
 extern String imieGracza1;
 extern String imieGracza2;
+
+extern String winnerName;
+extern String loserName;
+void reset2PlayerBoards();
+void loadPlayer1View();
+void savePlayer1View();
+void loadPlayer2View();
+void savePlayer2View();
 
 #endif // LOGIC_H

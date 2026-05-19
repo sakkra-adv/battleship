@@ -34,11 +34,20 @@ const uint16_t SHIP_COLORS[SHIP_COUNT] = {CYAN, MAGENTA, WHITE, GREEN};
 // --- STANY GRY ---
 enum GameState {
     START_MENU,
-    PLACING_SHIPS,
-    PLAYER_TURN,
-    COMPUTER_TURN,
-    STATE_VICTORY,  // <-- DODAJ TO
-    STATE_DEFEAT    // <-- DODAJ TO
+    PLACING_SHIPS,     // Tryb 1P (vs AI)
+    PLAYER_TURN,       // Tryb 1P (vs AI)
+    COMPUTER_TURN,     // Tryb 1P (vs AI)
+    
+    // --- NOWE STANY DLA TRYBU 2 GRACZY ---
+    WAIT_P1_PLACE,     // Ekran: "Gracz 1, przygotuj sie"
+    PLACING_P1,        // Rozstawianie okrętów przez Gracza 1
+    WAIT_P2_PLACE,     // Ekran: "Gracz 2, przygotuj sie"
+    PLACING_P2,        // Rozstawianie okrętów przez Gracza 2
+    PLAYER1_TURN,      // Bitwa: Celowanie Gracza 1
+    PLAYER2_TURN,      // Bitwa: Celowanie Gracza 2
+    
+    STATE_VICTORY,
+    STATE_DEFEAT
 };
 
 #endif
