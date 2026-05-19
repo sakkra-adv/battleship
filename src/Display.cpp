@@ -6,10 +6,8 @@ void drawUI() {
     M5.Display.startWrite();
     M5.Display.fillScreen(COLOR_BG);
     
-    // --- 1. PROSTY PASEK INFORMACYJNY (GÓRA EKRANU, OD LEWEJ) ---
+    // --- 1. PASEK INFORMACYJNY (GÓRA EKRANU) ---
     M5.Display.setTextSize(1);
-    
-    // Linia 1 (Górna, Y=3): Skrócone komunikaty, aby bez problemu mieściły się przed mapą
     M5.Display.setCursor(5, 3); 
     if (currentState == PLACING_SHIPS) {
         M5.Display.setTextColor(YELLOW);
@@ -19,12 +17,11 @@ void drawUI() {
         M5.Display.print("Aim (e.g. B4) + [SPACE] to fire");
     }
 
-    // Linia 2 (Dolna, Y=15): Kto gra
     M5.Display.setTextColor(COLOR_PLAYER);
     M5.Display.setCursor(5, 17); 
     M5.Display.print("Player: Leszek");
 
-        // --- 2. PANEL GRACZA (LEWA STRONA, OBNIŻONY O PARĘ PIKSELI DLA PORZĄDKU) ---
+    // --- 2. PANEL GRACZA / LEWA LEGENDA ---
     M5.Display.drawRect(5, 35, 85, 95, COLOR_PLAYER);
     M5.Display.drawLine(60, 35, 60, 130, COLOR_PLAYER); 
     M5.Display.setTextColor(COLOR_TEXT);
@@ -48,40 +45,67 @@ void drawUI() {
         M5.Display.printf("%d", r + 1);
 
         for (int c = 0; c < GRID_SIZE; c++) {
-            uint16_t cellColor = COLOR_GRID;
+            uint16_t cellColor = COLOR_GRID; // Domyślny kolor obwódki (niebieski)
             bool fillCell = false;
             uint16_t fillColor = COLOR_GRID;
 
+            // Faza 1: Ustawianie statków - Widzimy planszę gracza (playerBoard)
             if (currentState == PLACING_SHIPS) {
-                if (playerBoard[r][c] == 1) {
-                    cellColor = COLOR_SHIP;
-                    fillColor = COLOR_SHIP;
+                byte cellValue = playerBoard[r][c];
+                
+                // Jeśli na polu znajduje się jakikolwiek postawiony statek (ID: 10, 11, 12, 13)
+                if (cellValue >= 10 && cellValue <= 13) {
+                    int shipIdx = cellValue - 10;
+                    cellColor = SHIP_COLORS[shipIdx];
+                    fillColor = SHIP_COLORS[shipIdx];
                     fillCell = true;
                 }
+                
+                if (fillCell) {
+                    M5.Display.fillRect(OFFSET_X + c * CELL_SIZE + 2, OFFSET_Y + r * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4, fillColor);
+                }
+                M5.Display.drawRect(OFFSET_X + c * CELL_SIZE, OFFSET_Y + r * CELL_SIZE, CELL_SIZE, CELL_SIZE, cellColor);
             }
+            
+            // Faza 2: Bitwa - Widzimy planszę bota (enemyBoard) z uwzględnieniem Mgły Wojny
             else if (currentState == PLAYER_TURN) {
-                if (enemyBoard[r][c] == 2) {
+                byte cellValue = enemyBoard[r][c];
+
+                if (cellValue == 1) { 
+                    // Pudło gracza (np. ciemnoniebieski / szary kwadracik lub kropka)
                     cellColor = BLUE;
                     fillColor = BLUE;
                     fillCell = true;
                 } 
-                else if (enemyBoard[r][c] == 3) {
-                    cellColor = COLOR_TARGET;
-                    fillColor = COLOR_TARGET;
+                else if (cellValue >= 30 && cellValue <= 33) { 
+                    // Celne trafienie! Dekodujemy unikalny indeks statku (odjmujemy maskę 30)
+                    int shipIdx = cellValue - 30;
+                    fillColor = SHIP_COLORS[shipIdx]; // Pobieramy oryginalny kolor (Cyan, Magenta itd.)
+                    cellColor = fillColor;
                     fillCell = true;
                 }
-            }
+                // UWAGA: Jeśli cellValue wynosi od 10 do 13 (żywy statek bota) lub 0 (czysta woda) 
+                // – fillCell pozostaje 'false', co oznacza kompletną, szczelną mgłę wojny.
 
-            if (fillCell) {
-                M5.Display.fillRect(OFFSET_X + c * CELL_SIZE + 2, OFFSET_Y + r * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4, fillColor);
+                if (fillCell) {
+                    M5.Display.fillRect(OFFSET_X + c * CELL_SIZE + 2, OFFSET_Y + r * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4, fillColor);
+                    M5.Display.drawRect(OFFSET_X + c * CELL_SIZE, OFFSET_Y + r * CELL_SIZE, CELL_SIZE, CELL_SIZE, cellColor);
+                    
+                    // Opcjonalny wizualny akcent dla trafienia: mały czarny krzyżyk 'X' wewnątrz kafelka
+                    if (cellValue >= 30 && cellValue <= 33) {
+                        M5.Display.drawLine(OFFSET_X + c * CELL_SIZE + 4, OFFSET_Y + r * CELL_SIZE + 4, OFFSET_X + (c + 1) * CELL_SIZE - 5, OFFSET_Y + (r + 1) * CELL_SIZE - 5, BLACK);
+                        M5.Display.drawLine(OFFSET_X + (c + 1) * CELL_SIZE - 5, OFFSET_Y + r * CELL_SIZE + 4, OFFSET_X + c * CELL_SIZE + 4, OFFSET_Y + (r + 1) * CELL_SIZE - 5, BLACK);
+                    }
+                } else {
+                    M5.Display.drawRect(OFFSET_X + c * CELL_SIZE, OFFSET_Y + r * CELL_SIZE, CELL_SIZE, CELL_SIZE, COLOR_GRID);
+                }
             }
-            M5.Display.drawRect(OFFSET_X + c * CELL_SIZE, OFFSET_Y + r * CELL_SIZE, CELL_SIZE, CELL_SIZE, cellColor);
         }
     }
 
-    // --- 4. ELEMENTY SPECJALNE (DUCH STATKU / CELOWNIK DLA CELL_SIZE = 13) ---
+    // --- 4. ELEMENTY SPECJALNE (DUCH STATKU / CELOWNIK) ---
     if (currentState == PLACING_SHIPS) {
-        bool legal = canPlaceShip(selectedCol, selectedRow, currentShipIndex, rotation);
+        bool legal = isLegalPlacement(selectedCol, selectedRow, currentShipIndex, rotation, true);
         uint16_t ghostColor = legal ? YELLOW : RED;
 
         if (currentShipIndex < SHIP_COUNT) {
@@ -100,12 +124,12 @@ void drawUI() {
         }
     } 
     else if (currentState == PLAYER_TURN) {
-        // Podświetlenie pionowej kolumny (dopasowane symetrycznie do nowej krawędzi)
+        // Podświetlenie pionowej kolumny celownika
         M5.Display.drawRect(OFFSET_X + aimCol * CELL_SIZE - 1, 
                             OFFSET_Y - 1, 
                             CELL_SIZE + 2, (GRID_SIZE * CELL_SIZE) + 2, 0x7BEF);
 
-        // Celownik dynamiczny biało-żółty (dokładnie wyskalowany do wnętrza kratki 13x13)
+        // Celownik dynamiczny biało-żółty
         M5.Display.drawRect(OFFSET_X + aimCol * CELL_SIZE + 1, 
                             OFFSET_Y + aimRow * CELL_SIZE + 1, 
                             CELL_SIZE - 2, CELL_SIZE - 2, WHITE);
