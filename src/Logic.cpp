@@ -16,6 +16,10 @@ int currentShipIndex = 0;
 int compAimCol = 3;
 int compAimRow = 3;
 
+int g_trybGraczy = 1;
+String imieGracza1 = "Kapitan";
+String imieGracza2 = "EvilAI";
+
 // --- ZAAWANSOWANA PAMIĘĆ BEZWZGLĘDNEGO BOTA (EVILAI) ---
 struct HitPoint {
     int c, r;

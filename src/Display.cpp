@@ -2,6 +2,8 @@
 #include "Config.h"
 #include "Logic.h"
 
+extern String imieGracza1;
+
 // Deklaracje wewnętrznych funkcji (żeby drawUI widział je poniżej)
 void drawVictoryScreen(const char* playerName);
 void drawDefeatScreen(const char* playerName);
@@ -43,7 +45,7 @@ void drawUI() {
     } else {
         M5.Display.setTextColor(COLOR_PLAYER);
         M5.Display.setCursor(5, 17); 
-        M5.Display.print("Player: Leszek");
+        M5.Display.printf("Player: %s", imieGracza1.c_str());
     }
 
     // --- 2. PANEL GRACZA / LEWA LEGENDA ---
@@ -198,48 +200,39 @@ void drawUI() {
 
 // --- FUNKCJE RYSOWANIA EKRANÓW KOŃCOWYCH ---
 
-void drawVictoryScreen(const char* playerName) {
-    M5.Display.clear(BLACK);
-    M5.Display.drawRect(2, 2, 236, 131, COLOR_PLAYER);
-    M5.Display.setTextDatum(TC_DATUM);
+void drawVictoryScreen(const char* msg) {
+    M5.Display.fillScreen(BLACK);
     
-    M5.Display.setFont(&fonts::DejaVu12);
-    M5.Display.setTextColor(COLOR_PLAYER);
-    M5.Display.drawString("VICTORY!", 120, 12);
+    M5.Display.setTextColor(GREEN);
+    M5.Display.setTextSize(3);
+    M5.Display.setTextDatum(CC_DATUM);
+    M5.Display.drawString("WYGRANA!", 120, 35);
     
-    M5.Display.setFont(&fonts::DejaVu9);
-    M5.Display.setTextColor(COLOR_TEXT);
-    char buffer[40];
-    snprintf(buffer, sizeof(buffer), "Captain: %s", playerName);
-    M5.Display.drawString(buffer, 120, 37);
+    M5.Display.setTextColor(0x7BEF); // Nasz GRAY
+    M5.Display.setTextSize(1.5);
+    // Składamy tekst dynamicznie z Twoim imieniem!
+    String victoriaMsg = "Gratulacje " + imieGracza1 + "!";
+    M5.Display.drawString(victoriaMsg.c_str(), 120, 70);
     
-    M5.Display.setTextColor(GRAY);
-    M5.Display.drawString("EvilAI has been destroyed.", 120, 62);
-    M5.Display.drawString("Humanity is safe!", 120, 77);
-    
-    M5.Display.setTextColor(COLOR_PLAYER);
-    M5.Display.drawString("[ Press button to restart ]", 120, 107);
+    M5.Display.setTextColor(WHITE);
+    M5.Display.setTextSize(1);
+    M5.Display.drawString("[ Kliknij SPACJE aby zagrac znowu ]", 120, 110);
 }
 
-void drawDefeatScreen(const char* playerName) {
-    M5.Display.clear(BLACK);
-    M5.Display.drawRect(2, 2, 236, 131, RED);
-    M5.Display.setTextDatum(TC_DATUM);
-    
-    M5.Display.setFont(&fonts::DejaVu12);
-    M5.Display.setTextColor(RED);
-    M5.Display.drawString("GAME OVER", 120, 12);
-    
-    M5.Display.setFont(&fonts::DejaVu9);
-    M5.Display.setTextColor(COLOR_TEXT);
-    char buffer[40];
-    snprintf(buffer, sizeof(buffer), "%s - fleet is sinking!", playerName);
-    M5.Display.drawString(buffer, 120, 37);
+void drawDefeatScreen(const char* msg) {
+    M5.Display.fillScreen(BLACK);
     
     M5.Display.setTextColor(RED);
-    M5.Display.drawString("EvilAI: 'Weak algorithm.'", 120, 62);
-    M5.Display.drawString("'You went under.'", 120, 77);
+    M5.Display.setTextSize(3);
+    M5.Display.setTextDatum(CC_DATUM);
+    M5.Display.drawString("PORAZKA!", 120, 35);
     
-    M5.Display.setTextColor(GRAY);
-    M5.Display.drawString("[ Press button to retry ]", 120, 107);
+    M5.Display.setTextColor(0x7BEF); // Nasz GRAY
+    M5.Display.setTextSize(1.5);
+    String defeatMsg = imieGracza1 + " - Twoja flota zatonela...";
+    M5.Display.drawString(defeatMsg.c_str(), 120, 70);
+    
+    M5.Display.setTextColor(WHITE);
+    M5.Display.setTextSize(1);
+    M5.Display.drawString("[ Kliknij SPACJE aby sprobowac znowu ]", 120, 110);
 }

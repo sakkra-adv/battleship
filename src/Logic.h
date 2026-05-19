@@ -47,4 +47,8 @@ void markSunkShipSurroundings(int shipIdx, bool isPlayerBoard);
 extern int compAimCol;
 extern int compAimRow;
 
+extern int g_trybGraczy;
+extern String imieGracza1;
+extern String imieGracza2;
+
 #endif // LOGIC_H

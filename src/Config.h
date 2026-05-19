@@ -33,6 +33,7 @@ const uint16_t SHIP_COLORS[SHIP_COUNT] = {CYAN, MAGENTA, WHITE, GREEN};
 
 // --- STANY GRY ---
 enum GameState {
+    START_MENU,
     PLACING_SHIPS,
     PLAYER_TURN,
     COMPUTER_TURN,
