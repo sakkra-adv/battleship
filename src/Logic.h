@@ -32,14 +32,19 @@ void initLogic();
 Point rotatePoint(Point p, int rot);
 bool isWithinBounds(int col, int row, int shipIdx, int rot);
 
-// Poprawione sygnatury uwzględniające rygorystyczne zasady i rozróżnienie gracz/bot
 bool isLegalPlacement(int col, int row, int shipIdx, int rot, bool isPlayer);
 void placeShip(int col, int row, int shipIdx, int rot, bool isPlayer);
 
 void placeComputerShips();
 void computerShot();
-
-// Dodana brakująca deklaracja obsługi strzału gracza dla main.cpp:
 bool registerPlayerShot(int x, int y); 
+
+// --- NOWOŚĆ: Deklaracje funkcji sprawdzania końca gry i zatopień ---
+bool checkGameOver(bool checkPlayerBoard);
+bool isShipSunk(int shipIdx, bool isPlayerBoard);
+void markSunkShipSurroundings(int shipIdx, bool isPlayerBoard);
+
+extern int compAimCol;
+extern int compAimRow;
 
 #endif // LOGIC_H

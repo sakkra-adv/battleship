@@ -18,6 +18,8 @@ const uint16_t COLOR_PLAYER  = GREEN;
 const uint16_t COLOR_CURSOR  = WHITE;
 const uint16_t COLOR_TARGET  = WHITE; // Biały element celownika / ogólne oznaczenie
 
+#define GRAY 0x7BEF
+
 // --- KONFIGURACJA UNIKALNEJ FLOTY ---
 const int SHIP_COUNT = 4;
 const int SHIP_SIZES[SHIP_COUNT] = {6, 4, 3, 2};
@@ -31,10 +33,11 @@ const uint16_t SHIP_COLORS[SHIP_COUNT] = {CYAN, MAGENTA, WHITE, GREEN};
 
 // --- STANY GRY ---
 enum GameState {
-    PLACING_SHIPS,    // Faza układania floty przez gracza
-    PLAYER_TURN,      // Tura gracza (celowanie i strzał)
-    COMPUTER_TURN,    // Tura bota (wykonywanie ruchu przez AI)
-    GAME_OVER         // Ekran końca gry (Win/Lose)
+    PLACING_SHIPS,
+    PLAYER_TURN,
+    COMPUTER_TURN,
+    STATE_VICTORY,  // <-- DODAJ TO
+    STATE_DEFEAT    // <-- DODAJ TO
 };
 
 #endif

@@ -4,6 +4,10 @@
 #include "Logic.h"
 #include "Display.h"
 
+// Zmienne do obsługi blokady czasowej na ekranie końcowym
+unsigned long gameOverStartTime = 0;
+bool isTimerStarted = false;
+
 void setup() {
     auto cfg = M5.config();
     M5.begin(cfg);
@@ -17,11 +21,38 @@ void setup() {
 
 void loop() {
     M5Cardputer.update();
+
+    // --- 1. BLOKADA I OBSŁUGA EKRANU KOŃCA GRY (VICTORY / DEFEAT) ---
+    if (currentState == STATE_VICTORY || currentState == STATE_DEFEAT) {
+        // Jeśli to pierwszy obieg pętli po zakończeniu gry, uruchamiamy stoper
+        if (!isTimerStarted) {
+            gameOverStartTime = millis();
+            isTimerStarted = true;
+            Serial.println("Uruchomiono blokade 4 sekund na ekranie koncowym...");
+        }
+
+        // Sprawdzamy, czy minęły już 4 sekundy (4000 ms)
+        if (millis() - gameOverStartTime >= 4000) {
+            // Dopiero po 4 sekundach pozwalamy na restart spacją
+            if (M5Cardputer.Keyboard.isPressed() && M5Cardputer.Keyboard.isKeyPressed(' ')) {
+                Serial.println("Restartowanie gry... Powrot do ustawiania statkow.");
+                
+                isTimerStarted = false; // Resetujemy flagę stopera
+                initLogic();            // Reset logiki i plansz
+                drawUI();               // Rysujemy od nowa ekran ustawiania
+                
+                delay(300); // Zapobiega natychmiastowemu kliknięciu w nowej grze
+            }
+        }
+        
+        return; // !!! KLUCZOWE: Przerywamy pętlę, blokujemy całą resztę sterowania gry
+    }
     
+    // --- 2. GŁÓWNA OBSŁUGA KLAWIATURY (TRWAJĄCA ROZGRYWKA) ---
     if (M5Cardputer.Keyboard.isPressed()) {
         bool inputAction = false;
 
-        // --- FAZA 1: USTAWIANIE STATKÓW ---
+        // --- FAZA: USTAWIANIE STATKÓW ---
         if (currentState == PLACING_SHIPS) {
             int nextCol = selectedCol;
             int nextRow = selectedRow;
@@ -60,14 +91,13 @@ void loop() {
             }
         }
         
-        // --- FAZA 2: TURA GRACZA ---
+        // --- FAZA: TURA GRACZA ---
         else if (currentState == PLAYER_TURN) {
             if (M5Cardputer.Keyboard.isKeyPressed('e') || M5Cardputer.Keyboard.isKeyPressed('E'))      { if(aimRow > 0) aimRow--; inputAction = true; }
             else if (M5Cardputer.Keyboard.isKeyPressed('s') || M5Cardputer.Keyboard.isKeyPressed('S')) { if(aimRow < 7) aimRow++; inputAction = true; }
             else if (M5Cardputer.Keyboard.isKeyPressed('a') || M5Cardputer.Keyboard.isKeyPressed('A')) { if(aimCol > 0) aimCol--; inputAction = true; }
             else if (M5Cardputer.Keyboard.isKeyPressed('d') || M5Cardputer.Keyboard.isKeyPressed('D')) { if(aimCol < 7) aimCol++; inputAction = true; }
 
-            // Zachowujemy stare klawisze pomocnicze
             else if (M5Cardputer.Keyboard.isKeyPressed('b') || M5Cardputer.Keyboard.isKeyPressed('B')) { aimCol = 1; inputAction = true; }
             else if (M5Cardputer.Keyboard.isKeyPressed('c') || M5Cardputer.Keyboard.isKeyPressed('C')) { aimCol = 2; inputAction = true; }
             else if (M5Cardputer.Keyboard.isKeyPressed('f') || M5Cardputer.Keyboard.isKeyPressed('F')) { aimCol = 5; inputAction = true; }
@@ -88,33 +118,27 @@ void loop() {
                 delay(130);
                 return;
             }
-
+            
             // ODPALENIE TORPEDY (SPACE)
             if (M5Cardputer.Keyboard.isKeyPressed(' ')) {
                 byte cell = enemyBoard[aimRow][aimCol];
                 
-                // Dozwolony strzał tylko w wodę (0) lub nieuszkodzony statek bota (10 do 13)
                 if (cell == 0 || (cell >= 10 && cell <= 13)) {
-                    
-                    // Korzystamy z ujednoliconej funkcji z Logic.cpp
-                    bool isHit = registerPlayerShot(aimCol, aimRow);
-                    
-                    drawUI(); // Renderujemy natychmiast trafienie/pudło w pełnym kolorze
-                    delay(800); // Dłuższy czas dla Leszka na radość z trafienia lub smutek z pudła
+                    registerPlayerShot(aimCol, aimRow);
+                    drawUI(); 
+                    delay(1000); 
 
-                    if (!isHit) {
-                        // ZMIANA TURY: Gracz spudłował, czas na komputer
+                    // Jeśli po naszym strzale gra się nie skończyła, pozwól rządzic EvilAI
+                    if (currentState != STATE_VICTORY && currentState != STATE_DEFEAT) {
                         currentState = COMPUTER_TURN;
+                        computerShot(); 
                         
-                        computerShot(); // Bot wykonuje swój strzał
-                        
-                        drawUI(); // Pokazujemy gdzie bot strzelił na naszej planszy
-                        delay(500);
-                        
-                        currentState = PLAYER_TURN; // Powrót tury gracza
-                        drawUI();
+                        // Jeśli bot nas nie wykończył, wracamy do tury gracza
+                        if (currentState != STATE_VICTORY && currentState != STATE_DEFEAT) {
+                            currentState = PLAYER_TURN; 
+                            drawUI(); 
+                        }
                     }
-                    // UWAGA: Jeśli isHit == true, pomijamy ruch bota (gracz strzela dalej!)
                 } else {
                     Serial.println("Tam juz strzelales!");
                 }
