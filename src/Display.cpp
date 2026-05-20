@@ -25,19 +25,22 @@ void drawUI() {
         return; 
     }
 
+    // --- NAPRAWA PRZESUNIĘĆ (TWARDA KOTWICA) ---
+    M5.Display.setRotation(1);
+    M5.Display.setTextDatum(TL_DATUM); // <--- KLUCZOWE: Wymusza start tekstu od lewej góry
+    M5.Display.setCursor(0, 0);        // Reset kursora
+    
     M5.Display.startWrite();
     M5.Display.fillScreen(COLOR_BG);
     
     // --- 2. PASEK INFORMACYJNY (GÓRA EKRANU) ---
     M5.Display.setTextSize(1);
-    M5.Display.setCursor(5, 3); 
+    M5.Display.setCursor(5, 3);
     
-    // Sprawdzamy stan układania statków (Zaktualizowana legenda na SPACJĘ)
     if (currentState == PLACING_SHIPS || currentState == PLACING_P1 || currentState == PLACING_P2) {
         M5.Display.setTextColor(YELLOW);
         M5.Display.print("Move: A S D E, R=Rot, SPACE=Ok");
     } 
-    // Sprawdzamy stan strzelania
     else if (currentState == PLAYER_TURN || currentState == PLAYER1_TURN || currentState == PLAYER2_TURN) {
         M5.Display.setTextColor(COLOR_TEXT);
         M5.Display.print("Aim: A S D E + [SPACE] to fire");
@@ -47,7 +50,6 @@ void drawUI() {
         M5.Display.print("EvilAI is thinking... watch out!");
     }
 
-    // Dynamiczny wybór aktywnego imienia do paska "Player: ..."
     M5.Display.setCursor(5, 17); 
     if (currentState == COMPUTER_TURN) {
         M5.Display.setTextColor(RED);
@@ -67,9 +69,8 @@ void drawUI() {
     M5.Display.drawLine(60, 35, 60, 130, (currentState == COMPUTER_TURN) ? RED : COLOR_PLAYER); 
     M5.Display.setTextColor(COLOR_TEXT);
     M5.Display.setCursor(10, 38);
-    M5.Display.print("hits:"); // Nazwa panelu trafień
+    M5.Display.print("hits:"); 
 
-    // Dynamiczne rysowanie trafień
     for(int i = 0; i < SHIP_COUNT; i++) {
         int yPos = 50 + (i * 20);
         int hitCount = 0;
@@ -171,7 +172,7 @@ void drawUI() {
         }
     }
 
-    // --- 5. SPECJALNE NAKŁADKI (DUCH STATKU / CELOWNIKI) ---
+    // --- 5. SPECJALNE NAKŁADKI ---
     if (currentState == PLACING_SHIPS || currentState == PLACING_P1 || currentState == PLACING_P2) {
         bool legal = isLegalPlacement(selectedCol, selectedRow, currentShipIndex, rotation, true);
         uint16_t ghostColor = legal ? YELLOW : RED;
@@ -202,7 +203,6 @@ void drawUI() {
         M5.Display.drawRect(OFFSET_X + compAimCol * CELL_SIZE + 2, OFFSET_Y + compAimRow * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4, RED);
     }
 
-    // Litery A-H pod mapą
     M5.Display.setTextColor(COLOR_TEXT);
     for (int i = 0; i < GRID_SIZE; i++) {
         M5.Display.setCursor(OFFSET_X + i * CELL_SIZE + 4, OFFSET_Y + (GRID_SIZE * CELL_SIZE) + 4);
@@ -212,20 +212,14 @@ void drawUI() {
     M5.Display.endWrite();
 }
 
-// --- FUNKCJE RYSOWANIA EKRANÓW KOŃCOWYCH (Angielskie teksty i instrukcje) ---
-
 void drawVictoryScreen(const char* msg) {
     M5.Display.fillScreen(BLACK);
-    
-    // Zwycięstwo - rozmiar 2
     M5.Display.setTextColor(GREEN);
     M5.Display.setTextSize(2);
     M5.Display.setTextDatum(CC_DATUM);
     M5.Display.drawString("VICTORY!", 120, 25);
-    
     M5.Display.setTextColor(WHITE);
     M5.Display.setTextSize(1);
-    
     char buforTekstu[64];
     if (g_trybGraczy == 2) {
         snprintf(buforTekstu, sizeof(buforTekstu), "%s defeated %s!", winnerName.c_str(), loserName.c_str());
@@ -234,7 +228,6 @@ void drawVictoryScreen(const char* msg) {
         snprintf(buforTekstu, sizeof(buforTekstu), "Congratulations %s!", imieGracza1.c_str());
         M5.Display.drawString(buforTekstu, 120, 65);
     }
-    
     M5.Display.setTextColor(0x7BEF); 
     M5.Display.setTextSize(1);
     M5.Display.drawString("[ SPACE = Play Again ]", 120, 105);
@@ -242,26 +235,20 @@ void drawVictoryScreen(const char* msg) {
 
 void drawDefeatScreen(const char* msg) {
     M5.Display.fillScreen(BLACK);
-    
-    // Porażka - rozmiar 2
     M5.Display.setTextColor(RED);
     M5.Display.setTextSize(2);
     M5.Display.setTextDatum(CC_DATUM);
     M5.Display.drawString("DEFEAT!", 120, 25);
-    
     M5.Display.setTextColor(WHITE);
     M5.Display.setTextSize(1);
-    
     char buforTekstu[64];
     snprintf(buforTekstu, sizeof(buforTekstu), "%s - fleet destroyed...", imieGracza1.c_str());
     M5.Display.drawString(buforTekstu, 120, 65);
-    
     M5.Display.setTextColor(0x7BEF); 
     M5.Display.setTextSize(1);
     M5.Display.drawString("[ SPACE = Try Again ]", 120, 105);
 }
 
-// Funkcja generująca retro dźwięki
 void playSound(int freq, int durationMs, int type) {
     if (type == 1) {
         M5.Speaker.tone(freq, durationMs, 0, true); 
